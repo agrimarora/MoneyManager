@@ -1,70 +1,41 @@
 package com.example.moneymanager.presentation
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.example.moneymanager.R
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
-import com.example.moneymanager.Navigation.Routes
-import com.example.moneymanager.presentation.Viewmodel.AppViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Chat
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import co.yml.charts.axis.AxisData
 import co.yml.charts.common.model.Point
 import co.yml.charts.ui.linechart.LineChart
-import co.yml.charts.ui.linechart.model.GridLines
-import co.yml.charts.ui.linechart.model.IntersectionPoint
-import co.yml.charts.ui.linechart.model.Line
-import co.yml.charts.ui.linechart.model.LineChartData
-import co.yml.charts.ui.linechart.model.LinePlotData
-import co.yml.charts.ui.linechart.model.LineStyle
-import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
-import co.yml.charts.ui.linechart.model.SelectionHighlightPopUp
-import co.yml.charts.ui.linechart.model.ShadowUnderLine
+import co.yml.charts.ui.linechart.model.*
+import com.example.moneymanager.Navigation.Routes
+import com.example.moneymanager.R
 import com.example.moneymanager.common.model.ExpenseModel
+import com.example.moneymanager.presentation.Viewmodel.AppViewModel
+import com.example.moneymanager.ui.theme.transparentTextFieldColors
 import com.google.firebase.auth.FirebaseAuth
 import com.maxkeppeker.sheets.core.models.base.rememberSheetState
 import com.maxkeppeler.sheets.calendar.CalendarDialog
@@ -74,200 +45,153 @@ import com.maxkeppeler.sheets.calendar.models.CalendarStyle
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Date
-import java.util.Locale
-
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddExpenseScreen(viewmodel: AppViewModel = hiltViewModel(), navController: NavController, firebaseAuth: FirebaseAuth) {
-    val state = viewmodel.addExpenseScreenstate
-
+fun AddExpenseScreen(
+    viewmodel: AppViewModel = hiltViewModel(),
+    navController: NavController,
+    firebaseAuth: FirebaseAuth
+) {
+    val state by viewmodel.addExpenseScreenstate
     var showAddDialog by remember { mutableStateOf(false) }
-
-    // ✅ Dropdown filter state
     var selectedFilter by remember { mutableStateOf("All") }
-    val filterOptions = listOf("All", "Last Week", "Last 15 Days", "This Month", "Last Month", "Last 2 Months")
+    val filterOptions = listOf("All", "Last Week", "15 Days", "This Month")
 
-    val expenseState = viewmodel.expenditureListScreenstate.value
-    var expenses = expenseState.expenses ?: emptyList()
-    expenses = expenses.sortedBy { it.date }
+    val expenseState by viewmodel.expenditureListScreenstate
+    var expenses = (expenseState.expenses ?: emptyList()).sortedBy { it.date }
 
-    // ✅ Local filter logic
     val now = LocalDate.now()
     val filteredExpenses = expenses.filter { expense ->
         val expenseDate = LocalDate.ofEpochDay(expense.date / (1000 * 60 * 60 * 24))
         when (selectedFilter) {
             "Last Week" -> expenseDate.isAfter(now.minusWeeks(1))
-            "Last 15 Days" -> expenseDate.isAfter(now.minusDays(15))
+            "15 Days" -> expenseDate.isAfter(now.minusDays(15))
             "This Month" -> expenseDate.month == now.month && expenseDate.year == now.year
-            "Last Month" -> {
-                val lastMonth = now.minusMonths(1)
-                expenseDate.month == lastMonth.month && expenseDate.year == lastMonth.year
-            }
-            "Last 2 Months" -> expenseDate.isAfter(now.minusMonths(2))
             else -> true
         }
     }
 
-    when {
-        state.value.isLoading -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                CircularProgressIndicator(color = colorResource(id = R.color.prussian_Blue))
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(horizontal = 20.dp)
+    ) {
+        // App Bar / Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+            Text(
+                text = "Spending Statistics",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.ExtraBold
+            )
+            IconButton(onClick = { /* More options */ }) {
+                Icon(Icons.Default.MoreHoriz, contentDescription = "More")
             }
         }
 
-        !state.value.error.isNullOrEmpty() -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text("Something Went Wrong!\n${state.value.error}")
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
-
-        else -> {
-            if (state.value.success == true) {
-                navController.navigate(Routes.Dashboard)
-            } else {
-                val steps = 5
-                val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-
-                val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
-                val dateLabels: List<String> = filteredExpenses.map { expense ->
-                    dateFormat.format(Date(expense.date))
-                }
-
-                val pointsData: List<Point> = filteredExpenses.mapIndexed { index, expense ->
-                    Point(index.toFloat(), expense.amount.toFloat())
-                }
-                val xAxisData = AxisData.Builder()
-                    .axisStepSize(screenWidth / (pointsData.size.coerceAtLeast(1)))
-                    .steps(pointsData.size - 1)
-                    .labelData { i -> dateLabels.getOrNull(i) ?: "" }
-                    .labelAndAxisLinePadding(15.dp)
-                    .axisLineColor(colorResource(R.color.prussian_Blue))
-                    .build()
-
-                val yAxisData = AxisData.Builder()
-                    .steps(steps)
-                    .labelAndAxisLinePadding(20.dp)
-                    .labelData { i ->
-                        val yScale = 100 / steps
-                        (i * yScale).toString()
-                    }.axisLineColor(colorResource(R.color.prussian_Blue)).build()
-
-                val lineChartData = LineChartData(
-                    linePlotData = LinePlotData(
-                        lines = listOf(
-                            Line(
-                                dataPoints = pointsData,
-                                LineStyle(color = colorResource(R.color.prussian_Blue)),
-                                IntersectionPoint(color = colorResource(R.color.prussian_Blue)),
-                                SelectionHighlightPoint(color = colorResource(R.color.prussian_Blue)),
-                                ShadowUnderLine(
-                                    alpha = 0.4f,
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            colorResource(R.color.prussian_Blue),
-                                            Color.Transparent
-                                        )
-                                    )
-                                ),
-                                SelectionHighlightPopUp()
-                            )
-                        ),
-                    ),
-                    xAxisData = xAxisData,
-                    yAxisData = yAxisData,
-                    gridLines = GridLines(),
-                    backgroundColor = Color.White
-                )
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // ✅ Added dropdown filter
-                        ExposedDropdownMenuBox(
-                            expanded = false,
-                            onExpandedChange = { /* handle state inside */ }
-                        ) {
-                            var expanded by remember { mutableStateOf(false) }
-                            OutlinedButton(onClick = { expanded = true }) {
-                                Text(selectedFilter)
-                            }
-                            DropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
-                                filterOptions.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = { Text(option) },
-                                        onClick = {
-                                            selectedFilter = option
-                                            expanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Text("Statistic Expenditure")
-                        if (pointsData.isEmpty()) {
-                            Text("No Expenses Yet", fontSize = 24.sp, color = Color.Black)
-                        } else {
-                            LineChart(
-                                modifier = Modifier.fillMaxWidth().height(260.dp),
-                                lineChartData = lineChartData
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text(
-                            text = "Expenses",
-                            fontSize = 22.sp,
-                            color = Color.Black,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                        )
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            items(filteredExpenses) { expense ->
-                                ExpenseItem(expense = expense)
-                            }
-                        }
-                    }
-                    FloatingActionButton(
-                        onClick = { showAddDialog = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-                        containerColor = colorResource(id = R.color.prussian_Blue)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Expense",
-                            tint = Color.White
-                        )
-                    }
-                    if (showAddDialog) {
-                        AddExpenseDialog(
-                            onDismiss = { showAddDialog = false },
-                            firebaseAuth = firebaseAuth
-                        )
-                    }
+        // Time Period Navigation
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            filterOptions.forEach { option ->
+                val isSelected = selectedFilter == option
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { selectedFilter = option },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null
+                ) {
+                    Text(
+                        text = option,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        textAlign = TextAlign.Center,
+                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    )
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Chart Section
+        Surface(
+            modifier = Modifier.fillMaxWidth().height(280.dp),
+            shape = RoundedCornerShape(32.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                if (filteredExpenses.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No data available for this period", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    val pointsData = filteredExpenses.mapIndexed { index, expense ->
+                        Point(index.toFloat(), expense.amount.toFloat())
+                    }
+                    val lineChartData = createLineChartData(pointsData, filteredExpenses, MaterialTheme.colorScheme.primary)
+                    LineChart(
+                        modifier = Modifier.fillMaxSize(),
+                        lineChartData = lineChartData
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // Ledger Title
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Activity Feed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("${filteredExpenses.size} items", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Expense List
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 100.dp)
+        ) {
+            items(filteredExpenses.reversed()) { expense ->
+                TransactionItem(expense) // Reusing TransactionItem from HomeScreen logic
+            }
+        }
+    }
+
+    // Add FAB
+    Box(modifier = Modifier.fillMaxSize()) {
+        FloatingActionButton(
+            onClick = { showAddDialog = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 32.dp, end = 20.dp),
+            containerColor = MaterialTheme.colorScheme.primary,
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add Expense", tint = Color(0xFF084C00))
+        }
+    }
+
+    if (showAddDialog) {
+        AddExpenseDialog(onDismiss = { showAddDialog = false }, firebaseAuth = firebaseAuth)
     }
 }
 
@@ -278,188 +202,155 @@ fun AddExpenseDialog(
     onDismiss: () -> Unit,
     firebaseAuth: FirebaseAuth
 ) {
-    var discription by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
     val options = listOf("Need", "Want")
     var selectedOption by remember { mutableStateOf(options[0]) }
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val user = firebaseAuth.currentUser
 
     val calendarState = rememberSheetState()
-    val selectedDateMillis = remember { mutableStateOf<Long?>(null) }
+    val selectedDateMillis = remember { mutableStateOf<Long?>(System.currentTimeMillis()) }
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
 
     Dialog(onDismissRequest = { onDismiss() }) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.9f)
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "Add Expense",
-                    color = colorResource(id = R.color.prussian_Blue),
-                    fontSize = 25.sp
-                )
-
-                Spacer(modifier = Modifier.height(30.dp))
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Add New Expense", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(
-                    value = discription,
-                    onValueChange = { discription = it },
+                    value = description,
+                    onValueChange = { description = it },
                     label = { Text("Description") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorResource(id = R.color.prussian_Blue),
-                        unfocusedBorderColor = colorResource(id = R.color.prussian_Blue),
-                    )
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = transparentTextFieldColors()
                 )
-
-                Spacer(modifier = Modifier.height(15.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = amount,
                     onValueChange = { amount = it },
-                    label = { Text("Amount in Rupees") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorResource(id = R.color.prussian_Blue),
-                        unfocusedBorderColor = colorResource(id = R.color.prussian_Blue),
-                    ),
-                    keyboardOptions = KeyboardOptions.Default.copy(
-                        keyboardType = KeyboardType.Number
-                    )
+                    label = { Text("Amount (₹)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = transparentTextFieldColors(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(15.dp))
-
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
-                ) {
-                    OutlinedTextField(
-                        value = selectedOption,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                        },
-                        modifier = Modifier.menuAnchor(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorResource(id = R.color.prussian_Blue),
-                            unfocusedBorderColor = colorResource(id = R.color.prussian_Blue),
-                        ),
-                        leadingIcon = {
-                            val color = if (selectedOption == "Need") Color.Green else Color.Red
-                            Spacer(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .background(color, CircleShape)
-                            )
-                        }
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        options.forEach { option ->
-                            DropdownMenuItem(
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val color =
-                                            if (option == "Need") Color.Green else Color.Red
-                                        Spacer(
-                                            modifier = Modifier
-                                                .size(10.dp)
-                                                .background(color, CircleShape)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Text(option)
-                                    }
-                                },
-                                onClick = {
-                                    selectedOption = option
-                                    expanded = false
-                                }
+                // Category Selection
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    options.forEach { option ->
+                        val isSelected = selectedOption == option
+                        Surface(
+                            modifier = Modifier.weight(1f).clickable { selectedOption = option },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Text(
+                                text = option,
+                                modifier = Modifier.padding(vertical = 12.dp),
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
 
-                Spacer(modifier = Modifier.height(15.dp))
-
-                // 🔘 Select Date Button
-                Button(
+                // Date Picker Button
+                OutlinedButton(
                     onClick = { calendarState.show() },
-                    colors = ButtonDefaults.buttonColors(containerColor = colorResource(R.color.prussian_Blue))
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(Icons.Default.CalendarMonth, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = selectedDateMillis.value?.let {
-                            dateFormatter.format(Date(it))
-                        } ?: "Select Date",
-                        color = Color.White
-                    )
+                    Text(text = selectedDateMillis.value?.let { dateFormatter.format(Date(it)) } ?: "Select Date")
                 }
-
 
                 CalendarDialog(
                     state = calendarState,
-                    config = CalendarConfig(
-                        yearSelection = true,
-                        monthSelection = true,
-                        style = CalendarStyle.MONTH,
-                        disabledDates = generateDisabledFutureDates()
-                    ),
+                    config = CalendarConfig(style = CalendarStyle.MONTH),
                     selection = CalendarSelection.Date { localDate ->
-                        selectedDateMillis.value = localDate
-                            .atStartOfDay(ZoneId.systemDefault())
-                            .toInstant().toEpochMilli()
+                        selectedDateMillis.value = localDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
                     }
                 )
 
-                Spacer(modifier = Modifier.height(30.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-                Button(onClick = {
-                    if (user != null && selectedDateMillis.value != null) {
-                        viewmodel.AddExpense(
-                            ExpenseModel(
-                                description = discription,
-                                category = selectedOption,
-                                amount = amount,
-                                date = selectedDateMillis.value!!
+                Button(
+                    onClick = {
+                        if (user != null && selectedDateMillis.value != null && description.isNotBlank()) {
+                            viewmodel.AddExpense(
+                                ExpenseModel(
+                                    description = description,
+                                    category = selectedOption,
+                                    amount = amount,
+                                    date = selectedDateMillis.value!!
+                                )
                             )
-                        )
-                        onDismiss()
-                    }
-                },
-                    colors = ButtonDefaults.buttonColors(colorResource(R.color.prussian_Blue))) {
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text("Add", color = Color.White)
+                            onDismiss()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("ADD EXPENSE", fontWeight = FontWeight.Bold)
                 }
             }
         }
     }
 }
-fun generateDisabledFutureDates(): List<LocalDate> {
-    val today = LocalDate.now()
-    val futureDates = mutableListOf<LocalDate>()
-    for (i in 1..800) {
-        futureDates.add(today.plusDays(i.toLong()))
-    }
-    return futureDates
+
+@Composable
+fun createLineChartData(points: List<Point>, expenses: List<ExpenseModel>, primaryColor: Color): LineChartData {
+    val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
+    val xAxisData = AxisData.Builder()
+        .axisStepSize(100.dp)
+        .steps(points.size - 1)
+        .labelData { i -> expenses.getOrNull(i)?.let { dateFormat.format(Date(it.date)) } ?: "" }
+        .labelAndAxisLinePadding(15.dp)
+        .axisLineColor(primaryColor.copy(alpha = 0.5f))
+        .axisLabelColor(primaryColor)
+        .build()
+
+    val yAxisData = AxisData.Builder()
+        .steps(5)
+        .labelAndAxisLinePadding(20.dp)
+        .labelData { i -> (i * (points.maxOfOrNull { it.y } ?: 1000f) / 5).toInt().toString() }
+        .axisLineColor(primaryColor.copy(alpha = 0.5f))
+        .axisLabelColor(primaryColor)
+        .build()
+
+    return LineChartData(
+        linePlotData = LinePlotData(
+            lines = listOf(
+                Line(
+                    dataPoints = points,
+                    LineStyle(color = primaryColor, width = 4f),
+                    IntersectionPoint(color = primaryColor),
+                    SelectionHighlightPoint(color = primaryColor),
+                    ShadowUnderLine(
+                        alpha = 0.1f,
+                        brush = Brush.verticalGradient(listOf(primaryColor, Color.Transparent))
+                    ),
+                    SelectionHighlightPopUp()
+                )
+            )
+        ),
+        xAxisData = xAxisData,
+        yAxisData = yAxisData,
+        gridLines = GridLines(color = primaryColor.copy(alpha = 0.1f)),
+        backgroundColor = Color.Transparent
+    )
 }
-
-
-
-
-
-
-
-

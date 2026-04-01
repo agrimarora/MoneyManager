@@ -180,10 +180,8 @@ class AppViewModel @Inject constructor(
                     is ResultState.Succes<*> -> {
                         _addExpenseScreenstate.value = AddExpenseScreenSate(
                             success = true,
-
-
                             )
-
+                        getAllExpenditure()
                     }
 
                     is ResultState.error<*> -> {
@@ -208,6 +206,7 @@ class AppViewModel @Inject constructor(
                     }
                     is ResultState.Succes<*> -> {
                         _GoalScreenstate.value = AddGoalScreenSate(success = true)
+                        getGoals()
                     }
 
                      is ResultState.error<*> -> {
@@ -226,6 +225,7 @@ class AppViewModel @Inject constructor(
                     }
                     is ResultState.Succes<*> -> {
                         _GoalScreenstate.value = AddGoalScreenSate(success = true)
+                        getGoals()
                     }
                     is ResultState.error<*> -> {
                         _GoalScreenstate.value = AddGoalScreenSate(error = result.message)
@@ -269,6 +269,7 @@ class AppViewModel @Inject constructor(
                     }
                     is ResultState.Succes<*> -> {
                         _GoalScreenstate.value = AddGoalScreenSate(success = true)
+                        getGoals()
                     }
                     is ResultState.error<*> -> {
                         _GoalScreenstate.value = AddGoalScreenSate(error = result.message)

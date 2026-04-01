@@ -16,6 +16,12 @@ object Login : Routes()
     @Serializable
     object Profile : Routes()
     @Serializable
+    object Splash : Routes()
+    @Serializable
     object Goal: Routes()
+    @Serializable
+    object News: Routes()
+    @Serializable
+    object History: Routes()
 
 }

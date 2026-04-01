@@ -331,8 +331,11 @@ class RepoImpl @Inject constructor(
 
         val updatedData = mapOf(
             "target" to goal.target,
+            "targetAmount" to goal.targetAmount,
             "amount" to goal.amount,
-            "Date" to goal.Date
+            "progres" to goal.progres,
+            "Date" to goal.Date,
+            "achieved" to goal.achieved
         )
 
         goalRef.update(updatedData)
