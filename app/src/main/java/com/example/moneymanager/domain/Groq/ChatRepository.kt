@@ -1,5 +1,6 @@
 package com.example.moneymanager.domain.Groq
 
+import android.util.Log
 import com.example.moneymanager.data.Groq.GroqMessage
 import com.example.moneymanager.data.Groq.GroqRequest
 import com.example.moneymanager.data.Groq.GroqResponse
@@ -24,6 +25,7 @@ class ChatRepository {
                     val message = response.body()?.choices?.firstOrNull()?.message
                     message?.let { onResult(it) } ?: onError("Empty response")
                 } else {
+                    Log.d("ChatRepository", "onResponse:${response} ")
                     onError("Error: ${response.code()}")
                 }
             }

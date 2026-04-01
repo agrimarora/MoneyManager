@@ -80,18 +80,35 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-
-fun AddExpenseScreen (viewmodel: AppViewModel= hiltViewModel(),navController: NavController,firebaseAuth: FirebaseAuth) {
+fun AddExpenseScreen(viewmodel: AppViewModel = hiltViewModel(), navController: NavController, firebaseAuth: FirebaseAuth) {
     val state = viewmodel.addExpenseScreenstate
 
     var showAddDialog by remember { mutableStateOf(false) }
 
-
+    // ✅ Dropdown filter state
+    var selectedFilter by remember { mutableStateOf("All") }
+    val filterOptions = listOf("All", "Last Week", "Last 15 Days", "This Month", "Last Month", "Last 2 Months")
 
     val expenseState = viewmodel.expenditureListScreenstate.value
     var expenses = expenseState.expenses ?: emptyList()
-    expenses = (expenseState.expenses ?: emptyList())
-        .sortedBy { it.date }
+    expenses = expenses.sortedBy { it.date }
+
+    // ✅ Local filter logic
+    val now = LocalDate.now()
+    val filteredExpenses = expenses.filter { expense ->
+        val expenseDate = LocalDate.ofEpochDay(expense.date / (1000 * 60 * 60 * 24))
+        when (selectedFilter) {
+            "Last Week" -> expenseDate.isAfter(now.minusWeeks(1))
+            "Last 15 Days" -> expenseDate.isAfter(now.minusDays(15))
+            "This Month" -> expenseDate.month == now.month && expenseDate.year == now.year
+            "Last Month" -> {
+                val lastMonth = now.minusMonths(1)
+                expenseDate.month == lastMonth.month && expenseDate.year == lastMonth.year
+            }
+            "Last 2 Months" -> expenseDate.isAfter(now.minusMonths(2))
+            else -> true
+        }
+    }
 
     when {
         state.value.isLoading -> {
@@ -116,26 +133,22 @@ fun AddExpenseScreen (viewmodel: AppViewModel= hiltViewModel(),navController: Na
         }
 
         else -> {
-
             if (state.value.success == true) {
                 navController.navigate(Routes.Dashboard)
-
-
             } else {
                 val steps = 5
                 val screenWidth = LocalConfiguration.current.screenWidthDp.dp
 
                 val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
-                val dateLabels: List<String> = expenses.map { expense ->
-                    dateFormat.format(Date(expense.date)) // assuming expense.date is in millis
+                val dateLabels: List<String> = filteredExpenses.map { expense ->
+                    dateFormat.format(Date(expense.date))
                 }
 
-                val pointsData: List<Point> = expenses.mapIndexed { index, expense ->
+                val pointsData: List<Point> = filteredExpenses.mapIndexed { index, expense ->
                     Point(index.toFloat(), expense.amount.toFloat())
                 }
                 val xAxisData = AxisData.Builder()
                     .axisStepSize(screenWidth / (pointsData.size.coerceAtLeast(1)))
-//                .backgroundColor(Color.Blue)
                     .steps(pointsData.size - 1)
                     .labelData { i -> dateLabels.getOrNull(i) ?: "" }
                     .labelAndAxisLinePadding(15.dp)
@@ -144,12 +157,12 @@ fun AddExpenseScreen (viewmodel: AppViewModel= hiltViewModel(),navController: Na
 
                 val yAxisData = AxisData.Builder()
                     .steps(steps)
-
                     .labelAndAxisLinePadding(20.dp)
                     .labelData { i ->
                         val yScale = 100 / steps
                         (i * yScale).toString()
                     }.axisLineColor(colorResource(R.color.prussian_Blue)).build()
+
                 val lineChartData = LineChartData(
                     linePlotData = LinePlotData(
                         lines = listOf(
@@ -176,21 +189,45 @@ fun AddExpenseScreen (viewmodel: AppViewModel= hiltViewModel(),navController: Na
                     gridLines = GridLines(),
                     backgroundColor = Color.White
                 )
-                Box(modifier = Modifier.fillMaxSize()) {
 
+                Box(modifier = Modifier.fillMaxSize()) {
                     Column(
                         modifier = Modifier.fillMaxSize().padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        // ✅ Added dropdown filter
+                        ExposedDropdownMenuBox(
+                            expanded = false,
+                            onExpandedChange = { /* handle state inside */ }
+                        ) {
+                            var expanded by remember { mutableStateOf(false) }
+                            OutlinedButton(onClick = { expanded = true }) {
+                                Text(selectedFilter)
+                            }
+                            DropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                filterOptions.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option) },
+                                        onClick = {
+                                            selectedFilter = option
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Text("Statistic Expenditure")
-                        if (pointsData.isNullOrEmpty()) {
+                        if (pointsData.isEmpty()) {
                             Text("No Expenses Yet", fontSize = 24.sp, color = Color.Black)
                         } else {
                             LineChart(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(260.dp),
+                                modifier = Modifier.fillMaxWidth().height(260.dp),
                                 lineChartData = lineChartData
                             )
                         }
@@ -206,43 +243,34 @@ fun AddExpenseScreen (viewmodel: AppViewModel= hiltViewModel(),navController: Na
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-
-                            items(expenses) { expense ->
+                            items(filteredExpenses) { expense ->
                                 ExpenseItem(expense = expense)
                             }
-                        }}
-                        FloatingActionButton(
-                            onClick = { showAddDialog = true },
-                            modifier = Modifier
-                                .align (Alignment.BottomEnd)
-                                .padding(16.dp),
-                            containerColor = colorResource(id = R.color.prussian_Blue)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add Expense",
-                                tint = Color.White
-                            )
                         }
-                    if (showAddDialog) {
-                        AddExpenseDialog(
-                            onDismiss = {
-                                showAddDialog = false
-                            }, firebaseAuth = firebaseAuth
-
+                    }
+                    FloatingActionButton(
+                        onClick = { showAddDialog = true },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+                        containerColor = colorResource(id = R.color.prussian_Blue)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Expense",
+                            tint = Color.White
                         )
                     }
-
-
-
-
-
-
+                    if (showAddDialog) {
+                        AddExpenseDialog(
+                            onDismiss = { showAddDialog = false },
+                            firebaseAuth = firebaseAuth
+                        )
                     }
                 }
             }
         }
     }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseDialog(
@@ -380,7 +408,7 @@ fun AddExpenseDialog(
                     )
                 }
 
-                // 🗓️ Calendar Dialog
+
                 CalendarDialog(
                     state = calendarState,
                     config = CalendarConfig(

@@ -55,16 +55,6 @@ fun logInScreen(viewModel: AppViewModel = hiltViewModel(),navController: NavCont
             }
         }
 
-        !state.value.error.isNullOrEmpty() -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text("Something Went Wrong!\n${state.value.error}")
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
 
         else -> {
             if (state.value.success == true) {
@@ -110,6 +100,10 @@ fun logInScreen(viewModel: AppViewModel = hiltViewModel(),navController: NavCont
                     if (showtext) {
                         Text(text = "Enter valid email and password", color = Color.Red)
                     }
+                    if (!state.value.error.isNullOrEmpty()) {
+                        Text(text = "Something Went Wrong!\n${state.value.error}", color = Color.Red)
+                    }
+
                     Button(onClick = {
                         if (userEmail!="" && userPassword !="") {
                             viewModel.LoginUser(

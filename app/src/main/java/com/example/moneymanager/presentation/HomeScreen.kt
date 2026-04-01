@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import co.yml.charts.axis.AxisData
 import co.yml.charts.common.model.Point
 import co.yml.charts.ui.linechart.LineChart
@@ -42,12 +44,14 @@ import co.yml.charts.ui.linechart.model.LineStyle
 import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
 import co.yml.charts.ui.linechart.model.SelectionHighlightPopUp
 import co.yml.charts.ui.linechart.model.ShadowUnderLine
+import com.example.moneymanager.Navigation.Routes
 import com.example.moneymanager.R
 import com.example.moneymanager.common.model.ExpenseModel
 import com.example.moneymanager.common.model.UserData
 import com.example.moneymanager.presentation.Viewmodel.AppViewModel
 import com.example.moneymanager.presentation.Viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,18 +61,16 @@ fun HomeScreen(
     viewModel: AppViewModel = hiltViewModel(),
     chatViewModel: ChatViewModel = hiltViewModel(),
     firebaseAuth: FirebaseAuth,
+    navcontroller: NavController
 ) {
-    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    val vectorHeight = screenWidth * 0.693f
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
+
     val user = firebaseAuth.currentUser
     val state = viewModel.dashboardScreenstate.value
     val expenseState = viewModel.expenditureListScreenstate.value
     var name by remember { mutableStateOf("") }
     var showChatDialog by remember { mutableStateOf(false) }
-
-
-
-
 
     LaunchedEffect(true) {
         if (user != null) {
@@ -77,164 +79,125 @@ fun HomeScreen(
     }
 
     name = state.userdata?.Userdata?.name.orEmpty()
-    var expenses = expenseState.expenses ?: emptyList()
-    expenses = (expenseState.expenses ?: emptyList())
-        .sortedBy { it.date }
+    var expenses = (expenseState.expenses ?: emptyList()).sortedBy { it.date }
 
-
-
-
-
-    when {
-        state.isLoading -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                CircularProgressIndicator(color = colorResource(id = R.color.prussian_Blue))
-            }
-        }
-
-        !state.error.isNullOrEmpty() -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text("Something Went Wrong!\n${state.error}")
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
-
-        else -> {
-            val steps = 5
-            val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-
-            val dateFormat = SimpleDateFormat("dd MMM", Locale.getDefault())
-            val dateLabels: List<String> = expenses.map { expense ->
-                dateFormat.format(Date(expense.date)) // assuming expense.date is in millis
-            }
-
-            val pointsData: List<Point> = expenses.mapIndexed { index, expense ->
-                Point(index.toFloat(), expense.amount.toFloat())
-            }
-            val xAxisData = AxisData.Builder()
-                .axisStepSize(screenWidth / (pointsData.size.coerceAtLeast(1)))
-//                .backgroundColor(Color.Blue)
-                .steps(pointsData.size - 1)
-                .labelData { i -> dateLabels.getOrNull(i) ?: "" }
-                .labelAndAxisLinePadding(15.dp).axisLineColor(colorResource(R.color.prussian_Blue))
-                .build()
-
-            val yAxisData = AxisData.Builder()
-                .steps(steps)
-
-                .labelAndAxisLinePadding(20.dp)
-                .labelData { i ->
-                    val yScale = 100 / steps
-                    (i * yScale).toString()
-                }.axisLineColor(colorResource(R.color.prussian_Blue)).
-                build()
-            val lineChartData = LineChartData(
-                linePlotData = LinePlotData(
-                    lines = listOf(
-                        Line(
-                            dataPoints = pointsData,
-                            LineStyle(color = colorResource(R.color.prussian_Blue)),
-                            IntersectionPoint(color = colorResource(R.color.prussian_Blue)),
-                            SelectionHighlightPoint(color = colorResource(R.color.prussian_Blue)),
-                            ShadowUnderLine(
-                                alpha = 0.4f,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                    colorResource(R.color.prussian_Blue),
-                                        Color.Transparent
-                                    )
-                                )
-                            ),
-                            SelectionHighlightPopUp()
-                        )
-                    ),
-                ),
-                xAxisData = xAxisData,
-                yAxisData = yAxisData,
-                gridLines = GridLines(),
-                backgroundColor = Color.White
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            DrawerContent(
+                onGoalsClick = {
+                    coroutineScope.launch { drawerState.close() }
+                },
+                onSavingsClick = {
+                    coroutineScope.launch { drawerState.close() }
+                },
+                navcontroller = navcontroller
             )
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
+        },
+        gesturesEnabled = true,
+        scrimColor = Color.Black.copy(alpha = 0.5f),
+    ) {
+        // ✅ All main screen content goes *inside* this lambda
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                state.isLoading -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(color = colorResource(id = R.color.prussian_Blue))
+                    }
+                }
 
-                    Row(
+                !state.error.isNullOrEmpty() -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("Something Went Wrong!\n${state.error}")
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                }
+
+                else -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+
+                        // 🟦 Header Row with Menu + Greeting
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, top = 22.dp, end = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = {
+                                coroutineScope.launch { drawerState.open() }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = null,
+                                    tint = colorResource(id = R.color.prussian_Blue)
+                                )
+                            }
+                            Column {
+                                Text("Hello,", fontSize = 24.sp, color = Color.Black)
+                                Text(name, fontSize = 29.sp, color = Color.Black)
+                            }
+                        }
+
+                        // 🟩 Total Balance Card
+                        CardItem(
+                            viewModel = viewModel,
+                            modifier = Modifier.padding(top = 16.dp)
+                        )
+
+                        // 🟨 Expenses Title
+                        Text(
+                            text = "Expenses",
+                            fontSize = 22.sp,
+                            color = Color.Black,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                        )
+
+                        // 🟧 Expense List
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        ) {
+                            items(expenses.reversed()) { expense ->
+                                ExpenseItem(expense = expense)
+                            }
+                        }
+                    }
+
+                    FloatingActionButton(
+                        onClick = { showChatDialog = true },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp, top = 22.dp, end = 16.dp)
+                            .align(Alignment.BottomEnd)
+                            .padding(16.dp),
+                        containerColor = colorResource(id = R.color.prussian_Blue)
                     ) {
-                        Column {
-                            Text("Hello,", fontSize = 24.sp, color = Color.Black)
-                            Text(name, fontSize = 29.sp, color = Color.Black)
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Chat,
+                            contentDescription = "Chatbot",
+                            tint = Color.White
+                        )
                     }
 
-
-
-                    CardItem(
-                        viewModel = viewModel,
-
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-
-
-
-                    Text(
-                        text = "Expenses",
-                        fontSize = 22.sp,
-                        color = Color.Black,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                    )
-
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-
-                        items(expenses.reversed()) { expense ->
-                            ExpenseItem(expense = expense)
-                        }
+                    // 🗨️ Chatbot Dialog
+                    if (showChatDialog) {
+                        ChatBotDialog(
+                            onDismiss = { showChatDialog = false },
+                            viewModel = chatViewModel
+                        )
                     }
-                }
-
-                // 🔘 Floating Chat Button
-                FloatingActionButton(
-                    onClick = { showChatDialog = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp),
-                    containerColor = colorResource(id = R.color.prussian_Blue)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Chat,
-                        contentDescription = "Chatbot",
-                        tint = Color.White
-                    )
-                }
-
-                // 💬 Chatbot Dialog
-                if (showChatDialog) {
-                    ChatBotDialog(
-                        onDismiss = {
-                            showChatDialog = false
-                        },
-                        viewModel = chatViewModel
-                    )
                 }
             }
         }
     }
-
-
 }
 
 @Composable
@@ -479,6 +442,54 @@ fun ExpenseItem(expense: ExpenseModel) {
             text = "Rs.${expense.amount}",
             fontSize = 18.sp,
             color = Color.Black
+        )
+    }
+}
+@Composable
+fun DrawerContent(
+    onGoalsClick: () -> Unit,
+    onSavingsClick: () -> Unit,
+    navcontroller: NavController
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(250.dp)
+            .background(colorResource(R.color.white))
+            .padding(16.dp)
+    ) {
+        Text("Menu", fontSize = 22.sp, color = colorResource(R.color.prussian_Blue))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "🏆 Goals",
+            fontSize = 18.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { navcontroller.navigate(Routes.Goal)}
+                .padding(vertical = 8.dp)
+        )
+
+        Text(
+            text = "💰 Savings",
+            fontSize = 18.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onSavingsClick() }
+                .padding(vertical = 8.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Divider()
+
+        Text(
+            text = "⚙ Settings",
+            fontSize = 18.sp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { /* Handle settings */ }
+                .padding(vertical = 8.dp)
         )
     }
 }

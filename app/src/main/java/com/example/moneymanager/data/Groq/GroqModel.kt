@@ -1,13 +1,20 @@
 package com.example.moneymanager.data.Groq
 
-
-data class GroqMessage(val role: String, val content: String)
+data class GroqMessage(
+    val role: String,
+    val content: String
+)
 
 data class GroqRequest(
-    val model: String = "llama3-8b-8192",
+    val model: String = "llama-3.3-70b-versatile",
     val messages: List<GroqMessage>,
     val temperature: Double = 0.7
 )
 
-data class GroqResponse(val choices: List<Choice>)
-data class Choice(val message: GroqMessage)
+data class GroqResponse(
+    val choices: List<Choice>? // ✅ Nullable for safety
+)
+
+data class Choice(
+    val message: GroqMessage? // ✅ Nullable for safety
+)

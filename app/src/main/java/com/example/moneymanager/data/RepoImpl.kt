@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.moneymanager.common.ResultState
 import com.example.moneymanager.common.USER_COLLECTION
 import com.example.moneymanager.common.model.ExpenseModel
+import com.example.moneymanager.common.model.GoalModel
 import com.example.moneymanager.common.model.IncomeModel
 import com.example.moneymanager.common.model.UserData
 import com.example.moneymanager.common.model.UserDataParent
@@ -13,10 +14,11 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import java.util.Date
 import javax.inject.Inject
 
 class RepoImpl @Inject constructor(
-    var firebaseAuth: FirebaseAuth, var firebaseFirestore: FirebaseFirestore
+    var firebaseAuth: FirebaseAuth, var firebaseFirestore: FirebaseFirestore,
 ) : Repo {
 
 
@@ -25,9 +27,13 @@ class RepoImpl @Inject constructor(
 
             trySend(ResultState.Loading)
 
-            userdata.email?.let {
-                userdata.password?.let { it1 ->
-                    firebaseAuth.createUserWithEmailAndPassword(it, it1).addOnCompleteListener {
+            userdata.email?.let { email ->
+                userdata.password?.let { password ->
+                    if (email.isBlank() || password.isBlank()) {
+                        trySend(ResultState.error("Email and password cannot be empty"))
+                        return@callbackFlow
+                    }
+                    firebaseAuth.createUserWithEmailAndPassword(email, password).addOnCompleteListener {
 
                         if (it.isSuccessful) {
                             firebaseFirestore.collection(USER_COLLECTION)
@@ -55,10 +61,7 @@ class RepoImpl @Inject constructor(
                     }
                 }
             }
-            awaitClose {
-                close()
-
-            }
+            awaitClose { }
 
 
         }
@@ -66,9 +69,13 @@ class RepoImpl @Inject constructor(
     override fun loginuserwithemailandpassword(userdata: UserData): Flow<ResultState<String>> =
         callbackFlow {
             trySend(ResultState.Loading)
-            userdata.email?.let {
-                userdata.password?.let { it1 ->
-                    firebaseAuth.signInWithEmailAndPassword(it, it1).addOnCompleteListener {
+            userdata.email?.let { email ->
+                userdata.password?.let { password ->
+                    if (email.isBlank() || password.isBlank()) {
+                        trySend(ResultState.error("Email and password cannot be empty"))
+                        return@callbackFlow
+                    }
+                    firebaseAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener {
                         if (it.isSuccessful) {
                             trySend(ResultState.Succes("User Logged In Successfully"))
                         } else {
@@ -79,38 +86,11 @@ class RepoImpl @Inject constructor(
                     }
                 }
             }
-            awaitClose {
-                close()
-
-            }
+            awaitClose { }
 
         }
 
-    override fun AddExpense(expensedata: ExpenseModel): Flow<ResultState<String>> = callbackFlow {
-        trySend(ResultState.Loading)
-        val user = firebaseAuth.currentUser
-        if (user == null) {
-            trySend(ResultState.error("User not authenticated"))
-            close()
-            return@callbackFlow
-        }
 
-        val cartRef = firebaseFirestore.collection("${USER_COLLECTION}/${user.uid}/Expenses")
-        val newDocRef = cartRef.document() // generates a new unique document reference
-        val expenseWithId = expensedata.copy(id = newDocRef.id)
-        newDocRef.set(expenseWithId).addOnSuccessListener { document ->
-            trySend(ResultState.Succes("Expenses Added Successfully"))
-
-
-        }.addOnFailureListener {
-            trySend(ResultState.error(it.localizedMessage.toString()))
-        }
-        awaitClose {
-            close()
-        }
-
-
-    }
 
     override fun getuserbyUID(UID: String): Flow<ResultState<UserDataParent>> = callbackFlow {
         trySend(ResultState.Loading)
@@ -134,19 +114,18 @@ class RepoImpl @Inject constructor(
             }
 
         }
-        awaitClose {
-            close()
-        }
+        awaitClose { }
 
 
     }
 
-   override fun addIncomeToUser(userData: UserData): Flow<ResultState<String>> = callbackFlow {
+    override fun addIncomeToUser(userData: UserData): Flow<ResultState<String>> = callbackFlow {
         trySend(ResultState.Loading)
         val currentUser = firebaseAuth.currentUser?.uid
 
 
-        val userDocRef = firebaseFirestore.collection(USER_COLLECTION).document(currentUser.toString())
+        val userDocRef =
+            firebaseFirestore.collection(USER_COLLECTION).document(currentUser.toString())
 
         userDocRef.update("income", userData.income)
             .addOnSuccessListener {
@@ -158,42 +137,53 @@ class RepoImpl @Inject constructor(
 
         awaitClose { close() }
     }
-    override fun updateUserData(userDataParent: UserDataParent): Flow<ResultState<String>> = callbackFlow {
-        trySend(ResultState.Loading)
-        val user = firebaseAuth.currentUser
 
-        if (user != null && userDataParent.Userdata != null && userDataParent.Userdata.email != null) {
-            user.updateEmail(userDataParent.Userdata.email!!)
-                .addOnCompleteListener { emailUpdateTask ->
-                    if (emailUpdateTask.isSuccessful) {
-                        val uid = user.uid
-                        firebaseFirestore.collection(USER_COLLECTION).document(uid)
-                            .set(userDataParent.Userdata!!)
-                            .addOnCompleteListener { firestoreTask ->
-                                if (firestoreTask.isSuccessful) {
-                                    trySend(ResultState.Succes("User Data Updated Successfully"))
-                                } else {
-                                    trySend(ResultState.error(firestoreTask.exception?.localizedMessage ?: "Unknown error updating Firestore"))
+    override fun updateUserData(userDataParent: UserDataParent): Flow<ResultState<String>> =
+        callbackFlow {
+            trySend(ResultState.Loading)
+            val user = firebaseAuth.currentUser
+
+            if (user != null && userDataParent.Userdata != null && userDataParent.Userdata.email != null) {
+                user.updateEmail(userDataParent.Userdata.email!!)
+                    .addOnCompleteListener { emailUpdateTask ->
+                        if (emailUpdateTask.isSuccessful) {
+                            val uid = user.uid
+                            firebaseFirestore.collection(USER_COLLECTION).document(uid)
+                                .set(userDataParent.Userdata!!)
+                                .addOnCompleteListener { firestoreTask ->
+                                    if (firestoreTask.isSuccessful) {
+                                        trySend(ResultState.Succes("User Data Updated Successfully"))
+                                    } else {
+                                        trySend(
+                                            ResultState.error(
+                                                firestoreTask.exception?.localizedMessage
+                                                    ?: "Unknown error updating Firestore"
+                                            )
+                                        )
+                                    }
                                 }
-                            }
-                    } else {
-                        trySend(ResultState.error(emailUpdateTask.exception?.localizedMessage ?: "Failed to update email"))
+                        } else {
+                            trySend(
+                                ResultState.error(
+                                    emailUpdateTask.exception?.localizedMessage
+                                        ?: "Failed to update email"
+                                )
+                            )
+                        }
                     }
-                }
-        } else {
-            trySend(ResultState.error("User is null or invalid user data"))
+            } else {
+                trySend(ResultState.error("User is null or invalid user data"))
+            }
+
+            awaitClose {} // Important to close the flow
         }
 
-        awaitClose {} // Important to close the flow
-    }
 
-
-    override fun getallexpenditure(): Flow<ResultState<List<ExpenseModel>>> =callbackFlow{
+    override fun getallexpenditure(): Flow<ResultState<List<ExpenseModel>>> = callbackFlow {
         trySend(ResultState.Loading)
-        val user=firebaseAuth.currentUser
-        val cartRef=firebaseFirestore.collection("${USER_COLLECTION}/${user?.uid}/Expenses")
-        cartRef.get().addOnSuccessListener {
-            querySnapShot->
+        val user = firebaseAuth.currentUser
+        val cartRef = firebaseFirestore.collection("${USER_COLLECTION}/${user?.uid}/Expenses")
+        cartRef.get().addOnSuccessListener { querySnapShot ->
             try {
                 val ExpenseList = querySnapShot.documents.mapNotNull { document ->
                     document.toObject(ExpenseModel::class.java)
@@ -202,21 +192,179 @@ class RepoImpl @Inject constructor(
                 trySend(ResultState.Succes(ExpenseList))
 
 
-            }
-            catch (e: Exception){
+            } catch (e: Exception) {
 
                 trySend(ResultState.error(e.localizedMessage.toString()))
 
             }
 
 
-
         }
             .addOnFailureListener {
                 trySend(ResultState.error(it.localizedMessage.toString()))
             }
-        awaitClose()
-        close()
+        awaitClose { }
+
+
+    }
+
+    override fun getExpenditureByDateRange(
+        startDate: Date,
+        endDate: Date,
+    ): Flow<ResultState<List<ExpenseModel>>> = callbackFlow {
+        trySend(ResultState.Loading)
+
+        val user = firebaseAuth.currentUser
+        val cartRef = firebaseFirestore
+            .collection("${USER_COLLECTION}/${user?.uid}/Expenses")
+            .whereGreaterThanOrEqualTo("date", startDate)
+            .whereLessThanOrEqualTo("date", endDate)
+
+        cartRef.get()
+            .addOnSuccessListener { querySnapshot ->
+                try {
+                    val expenseList = querySnapshot.documents.mapNotNull { document ->
+                        document.toObject(ExpenseModel::class.java)
+                    }
+                    Log.d("Expenses", "getExpenditureByDateRange: $expenseList")
+                    trySend(ResultState.Succes(expenseList))
+                } catch (e: Exception) {
+                    trySend(ResultState.error(e.localizedMessage ?: "Unknown error"))
+                }
+            }
+            .addOnFailureListener {
+                trySend(ResultState.error(it.localizedMessage ?: "Unknown error"))
+            }
+
+        awaitClose { }
+    }
+    override fun AddExpense(expensedata: ExpenseModel): Flow<ResultState<String>> = callbackFlow {
+        trySend(ResultState.Loading)
+        val user = firebaseAuth.currentUser
+        if (user == null) {
+            trySend(ResultState.error("User not authenticated"))
+            close()
+            return@callbackFlow
+        }
+
+        val cartRef = firebaseFirestore.collection("${USER_COLLECTION}/${user.uid}/Expenses")
+        val newDocRef = cartRef.document() // generates a new unique document reference
+        val expenseWithId = expensedata.copy(id = newDocRef.id)
+        newDocRef.set(expenseWithId).addOnSuccessListener { document ->
+            trySend(ResultState.Succes("Expenses Added Successfully"))
+
+
+        }.addOnFailureListener {
+            trySend(ResultState.error(it.localizedMessage.toString()))
+        }
+        awaitClose { }
+
+
+    }
+
+    override fun setGoals(Goal: GoalModel): Flow<ResultState<String>> =callbackFlow{
+        val user=firebaseAuth.currentUser
+        val goalRef=firebaseFirestore.collection("${USER_COLLECTION}/${user?.uid}/Goals")
+        if (user==null){
+            trySend(ResultState.error("User not authenticated"))
+            close()
+            return@callbackFlow
+
+        }
+        val newDocRef = goalRef.document() // generates a new unique document reference
+        val goalWithId = Goal.copy(id = newDocRef.id)
+        newDocRef.set(goalWithId).addOnSuccessListener { document ->
+            trySend(ResultState.Succes("Goal Added Successfully"))
+
+
+        }.addOnFailureListener {
+            trySend(ResultState.error(it.localizedMessage.toString()))
+        }
+        awaitClose { }
+
+
+
+
+
+    }
+    override fun deleteGoal(goalId: String): Flow<ResultState<String>> = callbackFlow {
+        val user = firebaseAuth.currentUser
+        if (user == null) {
+            trySend(ResultState.error("User not authenticated"))
+            close()
+            return@callbackFlow
+        }
+
+        val goalRef = firebaseFirestore
+            .collection("${USER_COLLECTION}/${user.uid}/Goals")
+            .document(goalId)
+
+        goalRef.delete()
+            .addOnSuccessListener {
+                trySend(ResultState.Succes("Goal deleted successfully"))
+            }
+            .addOnFailureListener { exception ->
+                trySend(ResultState.error(exception.localizedMessage ?: "Failed to delete goal"))
+            }
+
+        awaitClose { close() }
+    }
+
+    override fun editGoal(goal: GoalModel): Flow<ResultState<String>> = callbackFlow {
+        val user = firebaseAuth.currentUser
+        if (user == null) {
+            trySend(ResultState.error("User not authenticated"))
+            close()
+            return@callbackFlow
+        }
+
+        if (goal.id.isNullOrEmpty()) {
+            trySend(ResultState.error("Invalid goal ID"))
+            close()
+            return@callbackFlow
+        }
+
+        val goalRef = firebaseFirestore
+            .collection("${USER_COLLECTION}/${user.uid}/Goals")
+            .document(goal.id)
+
+
+        val updatedData = mapOf(
+            "target" to goal.target,
+            "amount" to goal.amount,
+            "Date" to goal.Date
+        )
+
+        goalRef.update(updatedData)
+            .addOnSuccessListener {
+                trySend(ResultState.Succes("Goal updated successfully"))
+            }
+            .addOnFailureListener { exception ->
+                trySend(ResultState.error(exception.localizedMessage ?: "Failed to update goal"))
+            }
+
+        awaitClose { close() }
+    }
+
+
+    override fun getGoals(): Flow<ResultState<List<GoalModel>>> =callbackFlow {
+        trySend(ResultState.Loading)
+        val user=firebaseAuth.currentUser
+        val cartRef = firebaseFirestore
+            .collection("${USER_COLLECTION}/${user?.uid}/Goals")
+        cartRef.get().addOnSuccessListener {
+            try {
+                val goalList = it.documents.mapNotNull { document ->
+                    document.toObject(GoalModel::class.java)
+                }
+                trySend(ResultState.Succes(goalList))
+
+            }
+            catch (e: Exception){
+                trySend(ResultState.error(e.localizedMessage.toString()))
+            }
+        }
+        awaitClose { }
 
 
     }

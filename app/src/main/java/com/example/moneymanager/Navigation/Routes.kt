@@ -15,5 +15,7 @@ object Login : Routes()
     object Report : Routes()
     @Serializable
     object Profile : Routes()
+    @Serializable
+    object Goal: Routes()
 
 }

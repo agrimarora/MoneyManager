@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -50,6 +51,7 @@ fun SignUpScrenn(
     var UserName by remember { mutableStateOf("") }
     var UserPhoneNumber by remember { mutableStateOf("") }
     var UserIncome by remember { mutableStateOf("") }
+    var showLocalError by remember { mutableStateOf(false) }
     var context=LocalContext.current
 
     when {
@@ -63,16 +65,6 @@ fun SignUpScrenn(
             }
         }
 
-        !state.value.error.isNullOrEmpty() -> {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text("Something Went Wrong!\n${state.value.error}")
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
 
         else -> {
             if (state.value.success == true) {
@@ -156,29 +148,32 @@ fun SignUpScrenn(
                             unfocusedBorderColor = colorResource(id = R.color.prussian_Blue)
                         )
                     )
+                    if (showLocalError) {
+                        Text(text = "Please fill in all fields", color = Color.Red)
+                    }
+                    if (!state.value.error.isNullOrEmpty()) {
+                        Text(text = "Something Went Wrong!\n${state.value.error}", color = Color.Red)
+                    }
+
                     Spacer(modifier = Modifier.height(20.dp))
+
 
                     Button(
                         onClick = {
-                            viewModel.createUser(
-                                UserData(
-                                    name = UserName,
-                                    email = UserEmail,
-                                    password = UserPassword,
-                                    phoneNumber = UserPhoneNumber
-                                    ,income = UserIncome
+                            if (UserName!="" && UserEmail!="" && UserPassword!="" && UserPhoneNumber!="" && UserIncome!="") {
+                                showLocalError = false
+                                viewModel.createUser(
+                                    UserData(
+                                        name = UserName,
+                                        email = UserEmail,
+                                        password = UserPassword,
+                                        phoneNumber = UserPhoneNumber,
+                                        income = UserIncome
+                                    )
                                 )
-                            )
-
-//                        else{
-//                            UserPassword=""
-//                            UserConformPassword=""
-//                            UserEmail=""
-//                            UserName=""
-//                            UserPhoneNumber=""
-//                            Toast.makeText(context, "Something went wrong! Try Again", Toast.LENGTH_SHORT).show()
-//
-//                        }
+                            } else {
+                                showLocalError = true
+                            }
                         },
                         modifier = Modifier
                             .height(50.dp)

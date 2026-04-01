@@ -7,12 +7,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.BottomNavigation
 import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.StackedBarChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -29,6 +26,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.moneymanager.presentation.AddExpenseScreen
+import com.example.moneymanager.presentation.GoalScreen
 import com.example.moneymanager.presentation.HomeScreen
 import com.example.moneymanager.presentation.ProfileScreen
 import com.example.moneymanager.presentation.ReportScreen
@@ -96,13 +94,17 @@ if (showBottomNav) {
                 composable<Routes.Login> {
                     logInScreen(navController = navController)
                 }
+                composable<Routes.Goal> {
+                    GoalScreen(navController=navController)
+                }
+
                 composable<Routes.SignUp> {
                     SignUpScrenn(navController = navController)
 
 
                 }
                 composable<Routes.Dashboard> {
-                    HomeScreen(firebaseAuth = firebaseAuth)
+                    HomeScreen(firebaseAuth = firebaseAuth, navcontroller = navController)
 
                 }
                 composable<Routes.AddExpense> {

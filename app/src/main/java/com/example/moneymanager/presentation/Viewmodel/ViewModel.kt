@@ -7,12 +7,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.moneymanager.common.ResultState
 import com.example.moneymanager.common.model.ExpenseModel
+import com.example.moneymanager.common.model.GoalModel
 import com.example.moneymanager.common.model.UserData
 import com.example.moneymanager.common.model.UserDataParent
 import com.example.moneymanager.domain.useCase.AddExpenseUseCase
+import com.example.moneymanager.domain.useCase.AddGoalUserCasee
 import com.example.moneymanager.domain.useCase.AddIncome
 import com.example.moneymanager.domain.useCase.CreateuserUseCase
+import com.example.moneymanager.domain.useCase.DeleteGoalUseCase
+import com.example.moneymanager.domain.useCase.EditGoalUseCase
 import com.example.moneymanager.domain.useCase.GetAllExpensesUseCase
+import com.example.moneymanager.domain.useCase.GetGoalUseCase
 import com.example.moneymanager.domain.useCase.GetUserDetailsUseCase
 import com.example.moneymanager.domain.useCase.LogInUser
 import com.example.moneymanager.domain.useCase.UpdateUserUseCase
@@ -28,7 +33,12 @@ class AppViewModel @Inject constructor(
     val addIncome: AddIncome,
     val getUserDetailsUseCase: GetUserDetailsUseCase,
     val getAllExpensesUseCase:GetAllExpensesUseCase,
-    val updateuserUseCase: UpdateUserUseCase
+    val updateuserUseCase: UpdateUserUseCase,
+
+    val goalUserCasee: AddGoalUserCasee,
+    val deleteGoalUseCase: DeleteGoalUseCase,
+    val editGoalUseCase: EditGoalUseCase,
+    val getGoalUseCase: GetGoalUseCase
 
 
 ) : ViewModel() {
@@ -44,6 +54,8 @@ class AppViewModel @Inject constructor(
     val expenditureListScreenstate = _expenditureListScreenstate
     private val _ProfileScreenstate: MutableState<ProfileScreenState> = mutableStateOf(ProfileScreenState())
     val ProfileScreenState = _ProfileScreenstate
+    private val _GoalScreenstate: MutableState<AddGoalScreenSate> = mutableStateOf(AddGoalScreenSate())
+    val GoalScreenState = _GoalScreenstate
 
 
 
@@ -56,7 +68,9 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             logInUser.loginuser(userdata).collect { result ->
                 when (result) {
-                    ResultState.Loading -> LogINScreenSate(isLoading = true)
+                    ResultState.Loading -> {
+                        _logInScreenstate.value = LogINScreenSate(isLoading = true)
+                    }
                     is ResultState.Succes -> {
                         _logInScreenstate.value = LogINScreenSate(
                             success = true, userdata = result.data
@@ -135,7 +149,6 @@ class AppViewModel @Inject constructor(
                 when (result) {
                     ResultState.Loading -> {
                         _ProfileScreenstate.value = ProfileScreenState(isLoading = true)
-
                     }
                     is ResultState.Succes->{
                         _ProfileScreenstate.value = ProfileScreenState(
@@ -184,6 +197,84 @@ class AppViewModel @Inject constructor(
 
             }
 
+        }
+    }
+    fun deleteGoal(goalId: String) {
+        viewModelScope.launch {
+            deleteGoalUseCase.DeleteGoalUseCase(goalId).collect { result ->
+                when (result) {
+                    ResultState.Loading -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(isLoading = true)
+                    }
+                    is ResultState.Succes<*> -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(success = true)
+                    }
+
+                     is ResultState.error<*> -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(error = result.message)
+                    }
+                }
+            }
+        }
+    }
+    fun editGoal(goal: GoalModel) {
+        viewModelScope.launch {
+            editGoalUseCase.EditGoalUseCase(goal).collect { result ->
+                when (result) {
+                    ResultState.Loading -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(isLoading = true)
+                    }
+                    is ResultState.Succes<*> -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(success = true)
+                    }
+                    is ResultState.error<*> -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(error = result.message)
+                    }
+                }
+            }
+        }
+    }
+    fun getGoals() {
+        viewModelScope.launch {
+            getGoalUseCase.GetAllGoals().collect { result ->
+                when (result) {
+                    ResultState.Loading -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(isLoading = true)
+                    }
+                    is ResultState.Succes -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(
+                            success = true,
+                            goalList = result.data
+                        )
+                    }
+                    is ResultState.error -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(
+                            error = result.message
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+    fun AddGoal(goal: GoalModel) {
+        viewModelScope.launch {
+            goalUserCasee.AddGoal(goal).collect { result ->
+                when (result) {
+                    ResultState.Loading -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(isLoading = true)
+                    }
+                    is ResultState.Succes<*> -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(success = true)
+                    }
+                    is ResultState.error<*> -> {
+                        _GoalScreenstate.value = AddGoalScreenSate(error = result.message)
+                    }
+                }
+            }
         }
     }
 
@@ -260,6 +351,12 @@ data class AddExpenseScreenSate(
     val userdata: String? = null,
     val success: Boolean? = false
 )
+data class AddGoalScreenSate(
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val goalList: List<GoalModel>? = null,
+    val success: Boolean? = false
+)
 
 data class DashboardScreenSate(
     val isLoading: Boolean = false,
@@ -277,6 +374,6 @@ data class ProfileScreenState(
 data class ExpenditureListScreenSate(
     val isLoading: Boolean = false,
     val error: String? = null,
-    val expenses: List<ExpenseModel>? = null,
+    val expenses: List<ExpenseModel>? = emptyList(),
     val success: Boolean? = false
 )

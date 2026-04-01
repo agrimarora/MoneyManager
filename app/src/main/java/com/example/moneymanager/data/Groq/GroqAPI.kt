@@ -7,9 +7,10 @@ import retrofit2.http.POST
 
 interface GroqApi {
     @Headers(
-        "Authorization: Bearer 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",
+        "Authorization: Bearer your_actual_key_here", // ✅ Replace with your actual key
         "Content-Type: application/json"
     )
-    @POST("v1/chat/completions")
+    // ✅ Removed "v1/" here
+    @POST("chat/completions")
     fun getChatResponse(@Body request: GroqRequest): Call<GroqResponse>
 }
